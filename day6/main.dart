@@ -1,8 +1,27 @@
 import "dart:io";
 
-(int, int) findGuardStart(List<String> lines) {
-  for (var j = 0; j < lines.length; j++) {
-    var i = lines[j].indexOf("^");
+class PatrolMap {
+  List<String> _map;
+
+  PatrolMap(this._map);
+
+  int contains(int y, String cell) => _map[y].indexOf(cell);
+  String Get(int x, int y) => _map[y][x];
+  void Set(int x, int y, String cell) => _map[y] = _map[y].replaceRange(x, x+1, cell);
+  int get width => _map[0].length;
+  int get height => _map.length;
+  void printDebug() {
+    for (final l in _map) {
+      print(l);
+    }
+  }
+
+  PatrolMap clone() => PatrolMap(List<String>.from(_map));
+}
+
+(int, int) findGuardStart(PatrolMap map) {
+  for (var j = 0; j < map.height; j++) {
+    var i = map.contains(j, "^");
     if (i != -1) {
       return (i, j);
     }
@@ -15,14 +34,19 @@ enum Dir {
   Up, Down, Left, Right, Out
 }
 
-void part1(List<String> lines) {
+void part1(PatrolMap map) {
+  int sum = walk(map);
+  print("Part 1: $sum");
+}
+
+int walk(PatrolMap map) {
   int sum = 0;
   int maxSteps = 10000;
 
-  var (guardX, guardY) = findGuardStart(lines);
+  var (guardX, guardY) = findGuardStart(map);
   Dir dir = Dir.Up;
 
-  lines[guardY] = lines[guardY].replaceRange(guardX, guardX+1, 'X');
+  map.Set(guardX, guardY, 'X');
   sum++;
   maxSteps--;
 
@@ -32,162 +56,89 @@ void part1(List<String> lines) {
       case Dir.Up:
         if (guardY == 0) {
           dir = Dir.Out;
-        } else if (lines[guardY-1][guardX] == '#') {
+        } else if (map.Get(guardX, guardY-1) == '#') {
           dir = Dir.Right;
         } else {
-          if (lines[guardY][guardX] == ".") {
+          if (map.Get(guardX, guardY) == ".") {
             sum++;
           }
-          lines[guardY] = lines[guardY].replaceRange(guardX, guardX+1, 'X');
+          map.Set(guardX, guardY, 'X');
           guardY--;
         }
         break;
       case Dir.Down:
-        if (guardY == (lines.length-1)) {
+        if (guardY == (map.height-1)) {
           dir = Dir.Out;
-        } else if (lines[guardY+1][guardX] == '#') {
+        } else if (map.Get(guardX, guardY+1) == '#') {
           dir = Dir.Left;
         } else {
-          if (lines[guardY][guardX] == ".") {
+          if (map.Get(guardX, guardY) == ".") {
             sum++;
           }
-          lines[guardY] = lines[guardY].replaceRange(guardX, guardX+1, 'X');
+          map.Set(guardX, guardY, 'X');
           guardY++;
         }
         break;
       case Dir.Left:
         if (guardX == 0) {
           dir = Dir.Out;
-        } else if (lines[guardY][guardX-1] == '#') {
+        } else if (map.Get(guardX-1, guardY) == '#') {
           dir = Dir.Up;
         } else {
-          if (lines[guardY][guardX] == ".") {
+          if (map.Get(guardX, guardY) == ".") {
             sum++;
           }
-          lines[guardY] = lines[guardY].replaceRange(guardX, guardX+1, 'X');
+          map.Set(guardX, guardY, 'X');
           guardX--;
         }
         break;
       case Dir.Right:
-        if (guardX == (lines[0].length-1)) {
+        if (guardX == (map.width-1)) {
           dir = Dir.Out;
-        } else if (lines[guardY][guardX+1] == '#') {
+        } else if (map.Get(guardX+1, guardY) == '#') {
           dir = Dir.Down;
         } else {
-          if (lines[guardY][guardX] == ".") {
+          if (map.Get(guardX, guardY) == ".") {
             sum++;
           }
-          lines[guardY] = lines[guardY].replaceRange(guardX, guardX+1, 'X');
+          map.Set(guardX, guardY, 'X');
           guardX++;
         }
         break;
       case Dir.Out:
-        if (lines[guardY][guardX] == ".") {
+        if (map.Get(guardX, guardY) == ".") {
           sum++;
         }
-        lines[guardY] = lines[guardY].replaceRange(guardX, guardX+1, 'X');
-        print("Part 1: $sum");
-        return;
+        map.Set(guardX, guardY, 'X');
+        return sum;
     }
   }
+
+  return -1;
 }
 
-bool walk(List<String> lines, int maxSteps) {
+void part2(PatrolMap map) {
   int sum = 0;
 
-  var (guardX, guardY) = findGuardStart(lines);
-  Dir dir = Dir.Up;
+  // NOTE how to improve:
+  // - cycle detection: have a history of turns (being in front of an obstacle
+  //   and turning by 90° CW) and if we are at the same cell and doing the same
+  //   turn, then we have a cycle. Would eliminate the maxStep logic and terminate
+  //   earlier.
+  // - only place an obstacle on and next to the path without obstacles: no need
+  //   to put an obstacle where the guards will never encounter it.
 
-  lines[guardY] = lines[guardY].replaceRange(guardX, guardX+1, 'X');
-  sum++;
-  maxSteps--;
-
-  // cycle detection: mark the spot where the obstacle is and where we turned
-  // if we visit it again without visiting new '.' then we have a cycle
-
-  while (maxSteps > 0) {
-    maxSteps--;
-    switch (dir) {
-      case Dir.Up:
-        if (guardY == 0) {
-          dir = Dir.Out;
-        } else if (lines[guardY-1][guardX] == '#') {
-          dir = Dir.Right;
-        } else {
-          if (lines[guardY][guardX] == ".") {
-            sum++;
-          }
-          lines[guardY] = lines[guardY].replaceRange(guardX, guardX+1, 'X');
-          guardY--;
-        }
-        break;
-      case Dir.Down:
-        if (guardY == (lines.length-1)) {
-          dir = Dir.Out;
-        } else if (lines[guardY+1][guardX] == '#') {
-          dir = Dir.Left;
-        } else {
-          if (lines[guardY][guardX] == ".") {
-            sum++;
-          }
-          lines[guardY] = lines[guardY].replaceRange(guardX, guardX+1, 'X');
-          guardY++;
-        }
-        break;
-      case Dir.Left:
-        if (guardX == 0) {
-          dir = Dir.Out;
-        } else if (lines[guardY][guardX-1] == '#') {
-          dir = Dir.Up;
-        } else {
-          if (lines[guardY][guardX] == ".") {
-            sum++;
-          }
-          lines[guardY] = lines[guardY].replaceRange(guardX, guardX+1, 'X');
-          guardX--;
-        }
-        break;
-      case Dir.Right:
-        if (guardX == (lines[0].length-1)) {
-          dir = Dir.Out;
-        } else if (lines[guardY][guardX+1] == '#') {
-          dir = Dir.Down;
-        } else {
-          if (lines[guardY][guardX] == ".") {
-            sum++;
-          }
-          lines[guardY] = lines[guardY].replaceRange(guardX, guardX+1, 'X');
-          guardX++;
-        }
-        break;
-      case Dir.Out:
-        if (lines[guardY][guardX] == ".") {
-          sum++;
-        }
-        lines[guardY] = lines[guardY].replaceRange(guardX, guardX+1, 'X');
-        return false;
-    }
-  }
-  return true;
-}
-
-void part2(List<String> lines) {
-  int sum = 0;
-
-  int width = lines[0].length;
-  int height = lines.length;
-
-  // brute-force try everything out
-  for (int j = 0; j < height; j++) {
-    for (int i = 0; i < width; i++) {
-      if (lines[j][i] != '.') {
+  // brute-force: try putting an obstacle on every empty cell
+  for (int y = 0; y < map.height; y++) {
+    for (int x = 0; x < map.width; x++) {
+      if (map.Get(x, y) != '.') {
         continue;
       }
 
-      var newMap = List<String>.from(lines);
-      newMap[j] = newMap[j].replaceRange(i, i+1, '#');
+      var newMap = map.clone();
+      newMap.Set(x, y, '#');
 
-      if (walk(newMap, 10000)) {
+      if (walk(newMap) == -1) {
         sum++;
       }
     }
@@ -199,7 +150,8 @@ void part2(List<String> lines) {
 void main() {
   var f = File("input");
   var lines = f.readAsLinesSync();
+  var map = PatrolMap(lines);
 
-  //part1(lines);
-  part2(lines);
+  part1(map.clone());
+  part2(map);
 }
